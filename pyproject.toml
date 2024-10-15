@@ -3,5 +3,5 @@ name = "akinator-python"
 version = "0.1.0"
 description = "A Python wrapper for the Akinator API"
 
-[tools.setuptools]
+[tool.setuptools]
 packages = ["akinator_python"]
