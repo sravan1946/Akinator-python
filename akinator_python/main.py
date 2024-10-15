@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
 
 class AkinatorError(Exception):
@@ -26,14 +26,17 @@ class Akinator():
             "cm":child_mode,
             "answer":0,
         }
+        self.session = aiohttp.ClientSession()
 
-    def start_game(self):
+    async def start_game(self):
         self.name=None
         self.description=None
         self.photo=None
         self.answer_id=None
         self.akitude="https://en.akinator.com/assets/img/akitudes_670x1096/defi.png"
-        game=requests.post(f"{self.ENDPOINT}game",json={"sid":self.json["sid"],"cm":self.json["cm"]}).text
+
+        game= await self.session.post(f"{self.ENDPOINT}game",json={"sid":self.json["sid"],"cm":self.json["cm"]})
+        game = await game.text()
         soup = BeautifulSoup(game,"html.parser")
         askSoundlike=soup.find(id="askSoundlike")
         question_label=soup.find(id="question-label").get_text()
@@ -46,7 +49,7 @@ class Akinator():
         self.question=question_label
         return question_label
 
-    def post_answer(self,answer:str):
+    async def post_answer(self,answer:str):
         if answer=="y":
             self.json["answer"]=0
         elif answer=="n":
@@ -60,8 +63,8 @@ class Akinator():
         else:
             raise AkinatorError("the answer must be 'y' / 'n' / 'idk' / 'p' / 'pn'")
         try:
-            progression=requests.post(f"{self.ENDPOINT}answer",json=self.json)
-            progression=progression.json()
+            progression= await self.session.post(f"{self.ENDPOINT}answer",json=self.json)
+            progression= await progression.json()
             if progression["completion"]=="KO":
                 raise AkinatorError("completion : KO")
             elif progression["completion"]=="SOUNDLIKE":
@@ -74,7 +77,7 @@ class Akinator():
                 self.question=progression["question"]
                 self.question_id=progression["question_id"]
                 self.akitude=f"https://en.akinator.com/assets/img/akitudes_670x1096/{progression['akitude']}"
-            except:
+            except Exception:
                 self.name=progression["name_proposition"]
                 self.description=progression["description_proposition"]
                 self.photo=progression["photo"]
@@ -82,9 +85,9 @@ class Akinator():
                 self.json["step_last_proposition"]=int(self.json["step"])
             return progression
         except Exception as e:
-            raise AkinatorError(progression)
+            raise AkinatorError(progression) from e
 
-    def go_back(self):
+    async def go_back(self):
         self.name=None
         self.description=None
         self.photo=None
@@ -94,8 +97,8 @@ class Akinator():
         if "answer" in self.json:
             del self.json["answer"]
         try:
-            goback=requests.post(f"{self.ENDPOINT}cancel_answer",json=self.json)
-            goback=goback.json()
+            goback= await self.session.post(f"{self.ENDPOINT}cancel_answer",json=self.json)
+            goback= await goback.json()
             self.json["step"]=int(goback["step"])
             self.json["progression"]=float(goback["progression"])
             self.step=int(goback["step"])
@@ -107,7 +110,7 @@ class Akinator():
         except:
             raise AkinatorError(goback)
 
-    def exclude(self):
+    async def exclude(self):
         self.name=None
         self.description=None
         self.photo=None
@@ -115,8 +118,8 @@ class Akinator():
         if "answer" in self.json:
             del self.json["answer"]
         try:
-            exclude=requests.post(f"{self.ENDPOINT}exclude",json=self.json)
-            exclude=exclude.json()
+            exclude= await self.session.post(f"{self.ENDPOINT}exclude",json=self.json)
+            exclude= await exclude.json()
             self.json["step"]=int(exclude["step"])
             self.json["progression"]=float(exclude["progression"])
             self.step=int(exclude["step"])
